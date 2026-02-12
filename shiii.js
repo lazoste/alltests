@@ -1,30 +1,30 @@
 (function () {
-  if (window.__polliInjected) return;
-  window.__polliInjected = true;
+    if (window.__polliInjected) return;
+    window.__polliInjected = true;
 
-  let chatHistory = [
-    { role: "system", content: "give very concise responses without markdown." }
-  ];
+    let chatHistory = [
+        { role: "system", content: "give very concise responses without markdown." }
+    ];
 
-  function createChat() {
-    if (document.getElementById("polli-chat-widget")) return;
+    function createChat() {
+        if (document.getElementById("polli-chat-widget")) return;
 
-    const box = document.createElement("div");
-    box.id = "polli-chat-widget";
-    box.style.position = "fixed";
-    box.style.top = "120px";
-    box.style.left = "120px";
-    box.style.width = "380px";
-    box.style.height = "500px";
-    box.style.background = "#fff";
-    box.style.border = "1px solid #000";
-    box.style.display = "flex";
-    box.style.flexDirection = "column";
-    box.style.zIndex = "999999";
-    box.style.fontFamily = "Arial, sans-serif";
-    box.style.color = "#000";
+        const box = document.createElement("div");
+        box.id = "polli-chat-widget";
+        box.style.position = "fixed";
+        box.style.top = "120px";
+        box.style.left = "120px";
+        box.style.width = "380px";
+        box.style.height = "500px";
+        box.style.background = "#fff";
+        box.style.border = "1px solid #000";
+        box.style.display = "flex";
+        box.style.flexDirection = "column";
+        box.style.zIndex = "999999";
+        box.style.fontFamily = "Arial, sans-serif";
+        box.style.color = "#000";
 
-    box.innerHTML = `
+        box.innerHTML = `
 <style>
 #polli-chat {
   display: flex;
@@ -45,10 +45,6 @@
   font-weight: bold;
   display: flex;
   justify-content: space-between;
-}
-
-#polli-close {
-  cursor: pointer;
 }
 
 #polli-messages {
@@ -87,7 +83,6 @@
 <div id="polli-chat">
   <div id="polli-header">
     AI Chat
-    <span id="polli-close">×</span>
   </div>
   <div id="polli-messages"></div>
   <div id="polli-input-row">
@@ -97,85 +92,86 @@
 </div>
 `;
 
-    document.body.appendChild(box);
+        document.body.appendChild(box);
 
-    document.getElementById("polli-close").onclick = () => box.remove();
+        const messages = document.getElementById("polli-messages");
+        const input = document.getElementById("polli-input");
 
-    const messages = document.getElementById("polli-messages");
-    const input = document.getElementById("polli-input");
+        function addMessage(role, text) {
+            const div = document.createElement("div");
+            div.style.marginBottom = "6px";
+            div.innerHTML = "<b>" + (role === "user" ? "You" : "AI") + ":</b> " + text;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
 
-    function addMessage(role, text) {
-      const div = document.createElement("div");
-      div.style.marginBottom = "6px";
-      div.innerHTML = "<b>" + (role === "user" ? "You" : "AI") + ":</b> " + text;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
+        async function send() {
+            const text = input.value.trim();
+            if (!text) return;
 
-    async function send() {
-      const text = input.value.trim();
-      if (!text) return;
+            addMessage("user", text);
+            chatHistory.push({ role: "user", content: text });
+            input.value = "";
 
-      addMessage("user", text);
-      chatHistory.push({ role: "user", content: text });
-      input.value = "";
+            try {
+                const res = await fetch("https://text.pollinations.ai/openai", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: "openai",
+                        messages: chatHistory
+                    })
+                });
 
-      try {
-        const res = await fetch("https://text.pollinations.ai/openai", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "openai",
-            messages: chatHistory
-          })
+                const data = await res.json();
+                const reply = data.choices?.[0]?.message?.content || "No response";
+
+                chatHistory.push({ role: "assistant", content: reply });
+                addMessage("assistant", reply);
+            } catch {
+                addMessage("assistant", "Error contacting AI");
+            }
+        }
+
+        document.getElementById("polli-send").onclick = send;
+        input.addEventListener("keydown", e => {
+            if (e.key === "Enter") send();
         });
 
-        const data = await res.json();
-        const reply = data.choices?.[0]?.message?.content || "No response";
+        const header = document.getElementById("polli-header");
+        let offsetX, offsetY, isDown = false;
 
-        chatHistory.push({ role: "assistant", content: reply });
-        addMessage("assistant", reply);
-      } catch {
-        addMessage("assistant", "Error contacting AI");
-      }
+        header.onmousedown = e => {
+            isDown = true;
+            offsetX = e.clientX - box.offsetLeft;
+            offsetY = e.clientY - box.offsetTop;
+
+            document.onmousemove = ev => {
+                if (!isDown) return;
+                box.style.left = ev.clientX - offsetX + "px";
+                box.style.top = ev.clientY - offsetY + "px";
+            };
+
+            document.onmouseup = () => {
+                isDown = false;
+                document.onmousemove = null;
+            };
+        };
     }
 
-    document.getElementById("polli-send").onclick = send;
-    input.addEventListener("keydown", e => {
-      if (e.key === "Enter") send();
+    function toggle() {
+        const box = document.getElementById("polli-chat-widget");
+        if (!box) {
+            createChat();
+        } else {
+            box.style.display = box.style.display === "none" ? "flex" : "none";
+        }
+    }
+
+    document.addEventListener("keydown", function (e) {
+        if (e.ctrlKey && e.key === "3") {
+            e.preventDefault();
+            toggle();
+        }
     });
-
-    const header = document.getElementById("polli-header");
-    let offsetX, offsetY, isDown = false;
-
-    header.onmousedown = e => {
-      isDown = true;
-      offsetX = e.clientX - box.offsetLeft;
-      offsetY = e.clientY - box.offsetTop;
-
-      document.onmousemove = ev => {
-        if (!isDown) return;
-        box.style.left = ev.clientX - offsetX + "px";
-        box.style.top = ev.clientY - offsetY + "px";
-      };
-
-      document.onmouseup = () => {
-        isDown = false;
-        document.onmousemove = null;
-      };
-    };
-  }
-
-  function toggle() {
-    const existing = document.getElementById("polli-chat-widget");
-    if (existing) existing.hidden = true
-    else existing.hidden = false
-  }
-
-  document.addEventListener("keydown", function (e) {
-    if (e.ctrlKey && e.key === "3") {
-      e.preventDefault();
-      toggle();
-    }
-  });
 })();
