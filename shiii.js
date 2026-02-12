@@ -173,5 +173,5 @@
             e.preventDefault();
             toggle();
         }
-    });
+    }); 
 })();
